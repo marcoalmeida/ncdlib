@@ -17,98 +17,101 @@ KNOWN_COMPRESSORS = {"LZMA":["plzip", "lzip"], "BZIP2": "bzip2", "LZ77":"gzip",
                      "PPMD":"ppmd", "PAQ": "paq8l"}
 
 # function for verbose output; by default, it doesn't do anything; it
-# is redefined when enable_verbose()
-__verbose = lambda *a, **k: None
+# is redefined when _enable_verbose()
+_verbose = lambda *a, **k: None
 
 # return True iff the command cmd is available and can be executed
-def __cmd_exists(cmd):
+def _cmd_exists(cmd):
     try:
         subprocess.check_output("which %s" % cmd, shell=True)
         return True
     except subprocess.CalledProcessError:
         return False
 
-# redefine the __verbose function
-def enable_verbose(enable=True):
-    global __verbose
+# redefine the _verbose function
+def _enable_verbose(enable=True):
+    global _verbose
     if enable:
-        __verbose = print
+        _verbose = print
     else:
-        __verbose = lambda *a, **k: None
+        _verbose = lambda *a, **k: None
 
 # search the system for available (usable) compressors
 def available_compressors():
+    """Search the system for usable compressors. Return a dictionary
+    similar to KNOWN_COMPRESSORS: each key is an algorithm's name, and
+    its value is the command line tool that implements it."""
     compressors = {}
     for (name, binary) in KNOWN_COMPRESSORS.items():
         # try to find the binary by order of preference
         if type(binary) is list:
             for b in binary:
-                if __cmd_exists(b):
+                if _cmd_exists(b):
                     compressors[name] = b
                     break
         else:
-            if __cmd_exists(binary):
+            if _cmd_exists(binary):
                 compressors[name] = binary
     return compressors
 
 # apply a given compressor with cmd; return the full path to the
 # resulting compressed file or None if something fails
-def compress_any(cmd, result):
+def _compress_any(cmd, result):
     try:
-        __verbose("Trying '%s'" % cmd)
+        _verbose("Trying '%s'" % cmd)
         subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
-        __verbose("Failed '%s': %s\n\t%s" % (cmd, e, e.output))
+        _verbose("Failed '%s': %s\n\t%s" % (cmd, e, e.output))
         # try to cleanup
         try:
-            __verbose("Trying to remove '%s'" % result)
+            _verbose("Trying to remove '%s'" % result)
             os.remove(result)
         except OSError as e:
-            __verbose("Failed to remove '%s': %s" % (result, e))
+            _verbose("Failed to remove '%s': %s" % (result, e))
             # doesn't really matter
             pass
         return None
     # return the full path to the compressed file
     return result
 
-def compress_LZMA(fl, binary, verbose=False):
+def _compress_LZMA(fl, binary, verbose=False):
     cmd = "%s -f --best %s" % (binary, fl)
     result = "%s.lz" % fl
-    return compress_any(cmd, result)
+    return _compress_any(cmd, result)
 
-def compress_BZIP2(fl, binary, verbose=False):
+def _compress_BZIP2(fl, binary, verbose=False):
     cmd = "%s -z -f --best %s" % (binary, fl)
     result = "%s.bz2" % fl
-    return compress_any(cmd, result)
+    return _compress_any(cmd, result)
 
-def compress_LZ77(fl, binary, verbose=False):
+def _compress_LZ77(fl, binary, verbose=False):
     cmd = "%s -f --best %s" % (binary, fl)
     result = "%s.gz" % fl
-    return compress_any(cmd, result)
+    return _compress_any(cmd, result)
 
-def compress_LZW(fl, binary, verbose=False):
+def _compress_LZW(fl, binary, verbose=False):
     cmd = "%s -f %s" % (binary, fl)
     result = "%s.Z" % fl
-    return compress_any(cmd, result)
+    return _compress_any(cmd, result)
 
-def compress_PPMZ(fl, binary, verbose=False):
+def _compress_PPMZ(fl, binary, verbose=False):
     cmd = "%s -b %s %s.ppmz" % (binary, fl, fl)
     result = "%s.ppmz" % fl
-    return compress_any(cmd, result)
+    return _compress_any(cmd, result)
 
-def compress_PPMD(fl, binary, verbose=False):
+def _compress_PPMD(fl, binary, verbose=False):
     cmd = "%s e -d -m256 -o16 -r1 -f%s.ppmd %s" % (binary, fl, fl)
     result = "%s.ppmd" % fl
-    return compress_any(cmd, result)
+    return _compress_any(cmd, result)
 
-def compress_PAQ(fl, binary, verbose=False):
+def _compress_PAQ(fl, binary, verbose=False):
     cmd = "%s -8 %s" % (binary, fl)
     result = "%s.paq8l" % fl
-    return compress_any(cmd, result)
+    return _compress_any(cmd, result)
 
 # concatenate file1 and file2 into a new (temporary) file created in
 # working directory wd; return the full path to the new file
-def concat(file1, file2, wd, verbose=False):
+def _concat(file1, file2, wd, verbose=False):
     # create a new temporary file
     (tmp_file, tmp_path) = tempfile.mkstemp(dir=wd)
     # concatenate file1 and file2 into tmpfl
@@ -119,9 +122,22 @@ def concat(file1, file2, wd, verbose=False):
     # responsability to delete it)
     return tmp_path
 
-# compress file fl with the specified compressor; return the size of
-# the resulting compressed file
-def compress(fl, wd, compressor_name, compressor_binary, verbose=False):
+# ;
+def _compress(fl, wd, compressor_name, compressor_binary, verbose=False):
+    """
+    Compress a file with some compressor.
+
+    fl: file to compress
+    compressor_name: name of the compressor to use - as returned by
+    available_compressors()
+    compressor_binary: command line tool for 'compressor_name' - as
+    returned by available_compressors()
+    verbose: enable/disable verbose output (to the console)
+
+    returns: the size of the resulting compressed file
+
+    """
+
     # create a new temporary file to copy the data to and close it so
     # that it can be used
     (tmp_file, tmp_path) = tempfile.mkstemp(dir=wd)
@@ -129,7 +145,7 @@ def compress(fl, wd, compressor_name, compressor_binary, verbose=False):
     # copy fl to wd
     shutil.copy(fl, tmp_path)
     # compress the new file using the specified compressor
-    compressed_file = eval("compress_%s(tmp_path, compressor_binary, verbose)" % compressor_name)
+    compressed_file = eval("_compress_%s(tmp_path, compressor_binary, verbose)" % compressor_name)
     if compressed_file is not None:
         # get the size of the compressed file
         size = os.stat(compressed_file).st_size
@@ -149,15 +165,16 @@ def compress(fl, wd, compressor_name, compressor_binary, verbose=False):
     os.remove(tmp_path)
     return None
 
-# compute and return the compressed size of each component: x, y, x+y
-def compressed_values(input_x, input_y, wd, compressor_name, compressor_binary, verbose=False):
-    cx = compress(input_x, wd, compressor_name, compressor_binary, verbose)
-    cy = compress(input_y, wd, compressor_name, compressor_binary, verbose)
+# compute the compressed size of each component used to calculate the
+# NCD (files and respective concatenation)
+def _compressed_values(input_x, input_y, wd, compressor_name, compressor_binary, verbose=False):
+    cx = _compress(input_x, wd, compressor_name, compressor_binary, verbose)
+    cy = _compress(input_y, wd, compressor_name, compressor_binary, verbose)
     # concatenate both files and compute the compressed size
-    input_xy = concat(input_x, input_y, wd, verbose)
-    cxy = compress(input_xy, wd, compressor_name, compressor_binary, verbose)
-    input_yx = concat(input_y, input_x, wd, verbose)
-    cyx = compress(input_yx, wd, compressor_name, compressor_binary, verbose)
+    input_xy = _concat(input_x, input_y, wd, verbose)
+    cxy = _compress(input_xy, wd, compressor_name, compressor_binary, verbose)
+    input_yx = _concat(input_y, input_x, wd, verbose)
+    cyx = _compress(input_yx, wd, compressor_name, compressor_binary, verbose)
     # delete the temporary file that resulted from the concatenation
     os.remove(input_xy)
     os.remove(input_yx)
@@ -167,11 +184,31 @@ def compressed_values(input_x, input_y, wd, compressor_name, compressor_binary, 
         return (cx, cy, cxy, cyx)
     return (None, None, None)
 
-# compute and return the NCD using a given compressor
 def compute_ncd(input_x, input_y, compressor_name=None, wd="/tmp", verbose=False):
+    """
+    Compute the NCD of two files using some compressor.
+
+    input_x and input_y are the input files whose NCD will be
+    calculated. compressor_name is the name of the compressor
+    (algorithm family) to use, as returned by
+    available_compressors(). If compressor_name is None, all available
+    compressors are used and the best (smallest) result is used.
+
+    If verbose is True a description of each step of the algorithm is
+    sent to the console output.
+
+    Returns either the NCD value or, if verbose is True, a tuple
+    (C(input_x),
+     C(input_y),
+     C(input_x+input_y),
+     C(input_y+input_x),
+     NCD(input_x, input_y))
+    where a+b means concatenation of a and b.
+
+    """
     compressor_binary = available_compressors()
     if compressor_name is not None:
-        (cx, cy, cxy, cyx) = compressed_values(input_x, input_y, wd, compressor_name, compressor_binary[compressor_name], verbose)
+        (cx, cy, cxy, cyx) = _compressed_values(input_x, input_y, wd, compressor_name, compressor_binary[compressor_name], verbose)
     else:
         # worst possible values
         cx = 10*os.stat(input_x).st_size
@@ -181,7 +218,7 @@ def compute_ncd(input_x, input_y, compressor_name=None, wd="/tmp", verbose=False
         # loop through all available compressors and choose the best
         # possible compression value for each component
         for c in compressor_binary:
-            (ncx, ncy, ncxy, ncyx) = compressed_values(input_x, input_y, wd, c, compressor_binary[c], verbose)
+            (ncx, ncy, ncxy, ncyx) = _compressed_values(input_x, input_y, wd, c, compressor_binary[c], verbose)
             cx = min(cx, ncx)
             cy = min(cy, ncy)
             cxy = min(cxy, ncxy)
