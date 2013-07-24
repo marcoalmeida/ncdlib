@@ -23,7 +23,6 @@ import os
 import shutil
 import subprocess
 import tempfile
-from optparse import OptionParser
 
 
 # known compressors mapping: name->bin; a list with more than one
