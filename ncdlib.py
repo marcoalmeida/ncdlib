@@ -209,20 +209,20 @@ def _compressed_values(input_x, input_y, tmp_dir,
     """Compute the compressed size of each component used to calculate
     the NCD (files and respective concatenation). Return a tuple with
     the files' sizes."""
-    cx = _compress(input_x, tmp_dir, compressor_name, compressor_binary)
-    cy = _compress(input_y, tmp_dir, compressor_name, compressor_binary)
+    c_x = _compress(input_x, tmp_dir, compressor_name, compressor_binary)
+    c_y = _compress(input_y, tmp_dir, compressor_name, compressor_binary)
     # concatenate both files and compute the compressed size
     input_xy = _concat(input_x, input_y, tmp_dir)
-    cxy = _compress(input_xy, tmp_dir, compressor_name, compressor_binary)
+    c_xy = _compress(input_xy, tmp_dir, compressor_name, compressor_binary)
     input_yx = _concat(input_y, input_x, tmp_dir)
-    cyx = _compress(input_yx, tmp_dir, compressor_name, compressor_binary)
+    c_yx = _compress(input_yx, tmp_dir, compressor_name, compressor_binary)
     # delete the temporary file that resulted from the concatenation
     os.remove(input_xy)
     os.remove(input_yx)
     # apply the formula and return the value iff all values were
     # successfully computed
-    if None not in [cx, cy, cxy, cyx]:
-        return (cx, cy, cxy, cyx)
+    if None not in [c_x, c_y, c_xy, c_yx]:
+        return (c_x, c_y, c_xy, c_yx)
     return (None, None, None)
 
 def compute_ncd(input_x, input_y, compressor=None,
@@ -248,31 +248,33 @@ def compute_ncd(input_x, input_y, compressor=None,
     where a+b means concatenation of a and b.
 
     """
+    # enable/disable verbose output
     _enable_verbose(verbose)
-    compressor_binary = available_compressors()
+    # list of possible/available compressors
+    cmd = available_compressors()
     if compressor is not None:
-        (cx, cy, cxy, cyx) = _compressed_values(input_x, input_y, tmp_dir,
-                                                compressor,
-                                                compressor_binary[compressor])
+        (c_x, c_y, c_xy, c_yx) = _compressed_values(input_x, input_y, tmp_dir,
+                                                    compressor,
+                                                    cmd[compressor])
     else:
         # worst possible values
-        cx = 10*os.stat(input_x).st_size
-        cy = 10*os.stat(input_y).st_size
-        cxy = cx+cy
-        cyx = cx+cy
+        c_x = 10*os.stat(input_x).st_size
+        c_y = 10*os.stat(input_y).st_size
+        c_xy = c_x+c_y
+        c_yx = c_x+c_y
         # loop through all available compressors and choose the best
         # possible compression value for each component
-        for c in compressor_binary:
-            (ncx, ncy, ncxy, ncyx) = _compressed_values(input_x, input_y,
-                                                        tmp_dir, c,
-                                                        compressor_binary[c])
-            cx = min(cx, ncx)
-            cy = min(cy, ncy)
-            cxy = min(cxy, ncxy)
-            cyx = min(cyx, ncyx)
+        for comp in cmd:
+            (nc_x, nc_y, nc_xy, nc_yx) = _compressed_values(input_x, input_y,
+                                                            tmp_dir, comp,
+                                                            cmd[comp])
+            c_x = min(c_x, nc_x)
+            c_y = min(c_y, nc_y)
+            c_xy = min(c_xy, nc_xy)
+            c_yx = min(c_yx, nc_yx)
     # the distance; we use Steven de Rooij's approximation of NID:
     # min{ C(xy), C(yx)} - min{ C(x), C(y) } on the numerator
-    d = (min(cxy, cyx)-min(cx, cy))/max(cx, cy)
+    ncd = (min(c_xy, c_yx)-min(c_x, c_y))/max(c_x, c_y)
     if verbose:
-        return (cx, cy, cxy, cyx, d)
-    return d
+        return (c_x, c_y, c_xy, c_yx, ncd)
+    return ncd
