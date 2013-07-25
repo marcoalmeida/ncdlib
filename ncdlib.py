@@ -36,10 +36,6 @@ KNOWN_COMPRESSORS = {"LZMA":["plzip", "lzip"], "BZIP2": "bzip2", "LZ77":"gzip",
                      "LZW":"compress", "PPMZ":["ppmz", "static-ppmz"],
                      "PPMD":"ppmd", "PAQ": "paq8l"}
 
-# # function for verbose output; by default uses standard print, but it
-# # is redefined when _enable_verbose() is called with enable=False
-# def _verbose(*a, **k):
-#     print(a, k)
 
 def _cmd_exists(cmd):
     """Return True iff the command cmd is available and can be
