@@ -28,13 +28,18 @@ import subprocess
 import tempfile
 
 
-# known compressors mapping: name->bin; a list with more than one
-# binary means that there is more than one known compressor
-# implementing the same algorithm; they are ordered by preference;
-# names are always in upper-case
-KNOWN_COMPRESSORS = {"LZMA":["plzip", "lzip"], "BZIP2": "bzip2", "LZ77":"gzip",
-                     "LZW":"compress", "PPMZ":["ppmz", "static-ppmz"],
-                     "PPMD":"ppmd", "PAQ": "paq8l"}
+# static constants to ease compression specification
+LZMA = "lzip"
+BZIP2 = "bzip2"
+LZ77 = "gzip"
+LZW = "compress"
+PPMZ = "ppmz"
+PPMD = "ppmd"
+PAQ8l = "paq8l"
+                       
+# known compressors list, to be used when searching to available
+# compressors installed on the system
+KNOWN_COMPRESSORS = [LZMA, BZIP2, LZ77, LZW, PPMZ, PPMD, PAQ8l]
 
 
 def _cmd_exists(cmd):
@@ -59,17 +64,10 @@ def available_compressors():
     """Search the system for usable compressors. Return a dictionary
     similar to KNOWN_COMPRESSORS: each key is an algorithm's name, and
     its value is the command line tool that implements it."""
-    compressors = {}
-    for (name, binary) in KNOWN_COMPRESSORS.items():
-        # try to find the binary by order of preference
-        if type(binary) is list:
-            for tool in binary:
-                if _cmd_exists(tool):
-                    compressors[name] = tool
-                    break
-        else:
-            if _cmd_exists(binary):
-                compressors[name] = binary
+    compressors = []
+    for compressor in KNOWN_COMPRESSORS:
+        if _cmd_exists(compressor):
+            compressors.append(compressor)
     return compressors
 
 def _compress_any(cmd, result):
@@ -91,7 +89,7 @@ def _compress_any(cmd, result):
     # return the full path to the compressed file
     return result
 
-def _compress_lzma(infile, binary):
+def _compress_lzip(infile, binary):
     """Compress infile and return the size of the resulting compressed
     file. The argument binary is the name/path of the command line
     tool that implements the chosen compressor."""
@@ -107,7 +105,7 @@ def _compress_bzip2(infile, binary):
     result = "%s.bz2" % infile
     return _compress_any(cmd, result)
 
-def _compress_lz77(infile, binary):
+def _compress_gzip(infile, binary):
     """Compress infile and return the size of the resulting compressed
     file. The argument binary is the name/path of the command line
     tool that implements the chosen compressor."""
@@ -115,7 +113,7 @@ def _compress_lz77(infile, binary):
     result = "%s.gz" % infile
     return _compress_any(cmd, result)
 
-def _compress_lzw(infile, binary):
+def _compress_compress(infile, binary):
     """Compress infile and return the size of the resulting compressed
     file. The argument binary is the name/path of the command line
     tool that implements the chosen compressor."""
@@ -139,7 +137,7 @@ def _compress_ppmd(infile, binary):
     result = "%s.ppmd" % infile
     return _compress_any(cmd, result)
 
-def _compress_paq(infile, binary):
+def _compress_paq8l(infile, binary):
     """Compress infile and return the size of the resulting compressed
     file. The argument binary is the name/path of the command line
     tool that implements the chosen compressor."""
@@ -161,19 +159,11 @@ def _concat(file1, file2, tmp_dir):
     # responsability to delete it)
     return tmp_path
 
-def _compress(infile, tmp_dir, compressor_name, compressor_binary):
+def _compress(infile, tmp_dir, compressor):
     """
-    Compress a file with some compressor.
-
-    infile: file to compress
-    compressor_name: name of the compressor to use - as returned by
-    available_compressors()
-    compressor_binary: command line tool for 'compressor_name' - as
-    returned by available_compressors()
-    verbose: enable/disable verbose output (to the console)
-
-    returns: the size of the resulting compressed file
-
+    Compress infile with compressor using tmp_dir as working directory
+    to create temporary files in. Return the size of the resulting
+    compressed file.
     """
 
     # create a new temporary file to copy the data to and close it so
@@ -183,8 +173,8 @@ def _compress(infile, tmp_dir, compressor_name, compressor_binary):
     # copy infile to tmp_dir
     shutil.copy(infile, tmp_path)
     # compress the new file using the specified compressor
-    func_call = "_compress_%s(tmp_path, compressor_binary)"
-    compressed_file = eval(func_call % compressor_name.lower())
+    func_call = "_compress_%s(tmp_path, compressor)"
+    compressed_file = eval(func_call % compressor.lower())
     if compressed_file is not None:
         # get the size of the compressed file
         size = os.stat(compressed_file).st_size
@@ -204,18 +194,17 @@ def _compress(infile, tmp_dir, compressor_name, compressor_binary):
     os.remove(tmp_path)
     return None
 
-def _compressed_values(input_x, input_y, tmp_dir,
-                       compressor_name, compressor_binary):
+def _compressed_values(input_x, input_y, tmp_dir, compressor):
     """Compute the compressed size of each component used to calculate
     the NCD (files and respective concatenation). Return a tuple with
     the files' sizes."""
-    c_x = _compress(input_x, tmp_dir, compressor_name, compressor_binary)
-    c_y = _compress(input_y, tmp_dir, compressor_name, compressor_binary)
+    c_x = _compress(input_x, tmp_dir, compressor)
+    c_y = _compress(input_y, tmp_dir, compressor)
     # concatenate both files and compute the compressed size
     input_xy = _concat(input_x, input_y, tmp_dir)
-    c_xy = _compress(input_xy, tmp_dir, compressor_name, compressor_binary)
+    c_xy = _compress(input_xy, tmp_dir, compressor)
     input_yx = _concat(input_y, input_x, tmp_dir)
-    c_yx = _compress(input_yx, tmp_dir, compressor_name, compressor_binary)
+    c_yx = _compress(input_yx, tmp_dir, compressor)
     # delete the temporary file that resulted from the concatenation
     os.remove(input_xy)
     os.remove(input_yx)
@@ -225,17 +214,18 @@ def _compressed_values(input_x, input_y, tmp_dir,
         return (c_x, c_y, c_xy, c_yx)
     return (None, None, None)
 
-def compute_ncd(input_x, input_y, compressor=None,
+def compute_ncd(input_x, input_y, compressor=LZMA,
                 tmp_dir="/tmp", verbose=False):
     """
     Compute the NCD of two files using some compressor.
 
     input_x and input_y are the input files whose NCD will be
-    calculated. compressor is the name of the compressor
-    (algorithm family) to use, as returned by
-    available_compressors(). If compressor is None, all available
-    compressors are used and the best (smallest) result is used.
-
+    calculated. compressor is the name of the compressor (algorithm
+    family) to use, as returned by available_compressors(). It
+    defaults to LZMA because it was the algorithm which produced the
+    best results on a series of experiments in "An experimental study
+    on normal compressors" by Almeida and Antunes.
+    
     If verbose is True a description of each step of the algorithm is
     sent to the console output.
 
@@ -250,30 +240,12 @@ def compute_ncd(input_x, input_y, compressor=None,
     """
     # enable/disable verbose output
     _enable_verbose(verbose)
-    # list of possible/available compressors
-    cmd = available_compressors()
-    if compressor is not None:
-        (c_x, c_y, c_xy, c_yx) = _compressed_values(input_x, input_y, tmp_dir,
-                                                    compressor,
-                                                    cmd[compressor])
-    else:
-        # worst possible values
-        c_x = 10*os.stat(input_x).st_size
-        c_y = 10*os.stat(input_y).st_size
-        c_xy = c_x+c_y
-        c_yx = c_x+c_y
-        # loop through all available compressors and choose the best
-        # possible compression value for each component
-        for comp in cmd:
-            (nc_x, nc_y, nc_xy, nc_yx) = _compressed_values(input_x, input_y,
-                                                            tmp_dir, comp,
-                                                            cmd[comp])
-            c_x = min(c_x, nc_x)
-            c_y = min(c_y, nc_y)
-            c_xy = min(c_xy, nc_xy)
-            c_yx = min(c_yx, nc_yx)
-    # the distance; we use Steven de Rooij's approximation of NID:
-    # min{ C(xy), C(yx)} - min{ C(x), C(y) } on the numerator
+    # compress the files and get the necessary values to calculate the
+    # NCD
+    (c_x, c_y, c_xy, c_yx) = _compressed_values(input_x, input_y, 
+                                                tmp_dir, compressor)
+    # we use Steven de Rooij's approximation of NID: min{ C(xy),
+    # C(yx)} - min{ C(x), C(y) } on the numerator
     ncd = (min(c_xy, c_yx)-min(c_x, c_y))/max(c_x, c_y)
     if verbose:
         return (c_x, c_y, c_xy, c_yx, ncd)

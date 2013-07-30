@@ -29,6 +29,6 @@ import ncdlib
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         sys.exit("Usage: %s <file1> <file2>" % sys.argv[0])
-    ncd = ncdlib.compute_ncd(sys.argv[1], sys.argv[2], verbose=False)
+    ncd = ncdlib.compute_ncd(sys.argv[1], sys.argv[2], ncdlib.PAQ8l, verbose=True)
     print("NCD({}, {}) = {}".format(sys.argv[1], sys.argv[2], ncd))
     
