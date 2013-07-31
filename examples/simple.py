@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # Copyright (C) 2013  Marco Almeida <mfa@ncc.up.pt>
 
@@ -20,15 +20,10 @@
 
 import sys
 import os
-# make sure the lib is available
-cur_path = os.path.realpath(__file__)
-cur_dir = os.path.dirname(cur_path)
-sys.path.append(os.path.join(cur_dir, ".."))
 import ncdlib
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         sys.exit("Usage: %s <file1> <file2>" % sys.argv[0])
-    ncd = ncdlib.compute_ncd(sys.argv[1], sys.argv[2], ncdlib.PAQ8l, verbose=True)
-    print("NCD({}, {}) = {}".format(sys.argv[1], sys.argv[2], ncd))
-    
+    ncd = ncdlib.compute_ncd(sys.argv[1], sys.argv[2], ncdlib.LZMA, verbose=False)
+    print("NCD({0}, {1}) = {2:.4f}".format(sys.argv[1], sys.argv[2], ncd))
