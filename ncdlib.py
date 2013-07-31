@@ -61,9 +61,8 @@ def _enable_verbose(enable=True):
 
 # search the system for available (usable) compressors
 def available_compressors():
-    """Search the system for usable compressors. Return a dictionary
-    similar to KNOWN_COMPRESSORS: each key is an algorithm's name, and
-    its value is the command line tool that implements it."""
+    """Search the system for usable compressors. Return a subset of
+    KNOWN_COMPRESSORS."""
     compressors = []
     for compressor in KNOWN_COMPRESSORS:
         if _cmd_exists(compressor):
