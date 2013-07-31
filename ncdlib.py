@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """
 Python implementation of the Normalized Compression Distance
 """
@@ -36,7 +36,7 @@ LZW = "compress"
 PPMZ = "ppmz"
 PPMD = "ppmd"
 PAQ8l = "paq8l"
-                       
+
 # known compressors list, to be used when searching to available
 # compressors installed on the system
 KNOWN_COMPRESSORS = [LZMA, BZIP2, LZ77, LZW, PPMZ, PPMD, PAQ8l]
@@ -224,7 +224,7 @@ def compute_ncd(input_x, input_y, compressor=LZMA,
     defaults to LZMA because it was the algorithm which produced the
     best results on a series of experiments in "An experimental study
     on normal compressors" by Almeida and Antunes.
-    
+
     If verbose is True a description of each step of the algorithm is
     sent to the console output.
 
@@ -241,11 +241,11 @@ def compute_ncd(input_x, input_y, compressor=LZMA,
     _enable_verbose(verbose)
     # compress the files and get the necessary values to calculate the
     # NCD
-    (c_x, c_y, c_xy, c_yx) = _compressed_values(input_x, input_y, 
+    (c_x, c_y, c_xy, c_yx) = _compressed_values(input_x, input_y,
                                                 tmp_dir, compressor)
     # we use Steven de Rooij's approximation of NID: min{ C(xy),
     # C(yx)} - min{ C(x), C(y) } on the numerator
-    ncd = (min(c_xy, c_yx)-min(c_x, c_y))/max(c_x, c_y)
+    ncd = (float(min(c_xy, c_yx))-float(min(c_x, c_y)))/max(c_x, c_y)
     if verbose:
         return (c_x, c_y, c_xy, c_yx, ncd)
     return ncd
