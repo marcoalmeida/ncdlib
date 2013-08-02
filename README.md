@@ -8,8 +8,10 @@ Features
 --------
 
 * Simple, easy to use, open source
-* Allows to use 7 different compressors, all easily available on any GNU/Linux system
+* Allows to choose from 7 different compressors, all easily available
+  on any GNU/Linux system
 * Quick and easy development of prototypes and ad-hoc tests
+
 
 Acknowledgments
 ---------------
