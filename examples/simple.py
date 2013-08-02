@@ -20,16 +20,20 @@
 
 
 import sys
-from ncdlib import compute_ncd, LZMA
+from ncdlib import compute_ncd, available_compressors
 
 
 def compare_files(infile1, infile2):
     """Simply call compute_ncd() and return the result."""
-    return compute_ncd(infile1, infile2, LZMA, verbose=False)
+    for compressor in available_compressors():
+        ncd = compute_ncd(infile1, infile2, compressor)
+        print("{0:8} NCD({1}, {2}) = {3:.4f}".format(compressor,
+                                                     infile1,
+                                                     infile2,
+                                                     ncd))
 
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         sys.exit("Usage: %s <file1> <file2>" % sys.argv[0])
-    print("NCD({0}, {1}) = {2:.4f}".format(compare_files(sys.argv[1],
-                                                         sys.argv[2])))
+    compare_files(sys.argv[1], sys.argv[2])
