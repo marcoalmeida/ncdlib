@@ -3,7 +3,7 @@
 Python implementation of the Normalized Compression Distance
 """
 
-# Copyright (C) 2013  Marco Almeida <mfa@ncc.up.pt>
+# Copyright (C) 2013  Marco Almeida <marcoafalmeida@gmail.com>
 
 # This file is part of ncdlib.
 
