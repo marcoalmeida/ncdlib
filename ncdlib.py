@@ -28,7 +28,7 @@ import subprocess
 import tempfile
 
 
-# static constants to ease compression specification
+# static constants to ease compressor specification
 LZMA = "lzip"
 BZIP2 = "bzip2"
 LZ77 = "gzip"
