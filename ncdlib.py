@@ -20,7 +20,7 @@ Python implementation of the Normalized Compression Distance
 # You should have received a copy of the GNU General Public License
 # along with ncdlib.  If not, see <http://www.gnu.org/licenses/>.
 
-
+from __future__ import print_function
 import os
 import logging
 import shutil
@@ -29,18 +29,20 @@ import tempfile
 
 
 # static constants to ease compressor specification
-LZMA = "lzip"
-BZIP2 = "bzip2"
-LZ77 = "gzip"
-LZW = "compress"
-PPMZ = "ppmz"
-PPMD = "ppmd"
-PAQ8l = "paq8l"
+LZMA = "LZMA"
+BZIP2 = "BZIP2"
+LZ77 = "LZ77"
+LZW = "LZW"
+PPMZ = "PPMZ"
+PPMD = "PPMD"
+PAQ8L = "PAQ8L"
 
 # known compressors list, to be used when searching to available
 # compressors installed on the system
-KNOWN_COMPRESSORS = [LZMA, BZIP2, LZ77, LZW, PPMZ, PPMD, PAQ8l]
-
+_KNOWN_COMPRESSORS = [LZMA, BZIP2, LZ77, LZW, PPMZ, PPMD, PAQ8L]
+_COMPRESSOR_BINARY = {LZMA: "lzip", BZIP2: "bzip2", LZ77: "gzip",
+                     LZW: "compress", PPMZ: "ppmz", PPMD: "ppmd",
+                     PAQ8L: "paq8l"}
 
 def _cmd_exists(cmd):
     """Return True iff the command cmd is available and can be
@@ -59,13 +61,20 @@ def _enable_verbose(enable=True):
         logging.basicConfig(format='%(levelname)s:%(message)s',
                             level=logging.WARNING)
 
+def known_compressors():
+    """Show a list of all compressors which is possible to use with
+    this module."""
+    for compressor in _KNOWN_COMPRESSORS:
+        print(compressor)
+
 # search the system for available (usable) compressors
 def available_compressors():
-    """Search the system for usable compressors. Return a subset of
-    KNOWN_COMPRESSORS."""
+    """Search the system for usable compressors. Show and return the
+    list."""
     compressors = []
-    for compressor in KNOWN_COMPRESSORS:
-        if _cmd_exists(compressor):
+    for compressor in _KNOWN_COMPRESSORS:
+        if _cmd_exists(_COMPRESSOR_BINARY[compressor]):
+            print(compressor)
             compressors.append(compressor)
     return compressors
 
@@ -241,8 +250,8 @@ def compute_ncd(input_x, input_y, compressor=LZMA,
     _enable_verbose(verbose)
     # compress the files and get the necessary values to calculate the
     # NCD
-    (c_x, c_y, c_xy, c_yx) = _compressed_values(input_x, input_y,
-                                                tmp_dir, compressor)
+    (c_x, c_y, c_xy, c_yx) = _compressed_values(input_x, input_y, tmp_dir,
+                                                _COMPRESSOR_BINARY[compressor])
     # we use Steven de Rooij's approximation of NID: min{ C(xy),
     # C(yx)} - min{ C(x), C(y) } on the numerator
     ncd = (float(min(c_xy, c_yx))-float(min(c_x, c_y)))/max(c_x, c_y)
