@@ -74,7 +74,6 @@ def available_compressors():
     compressors = []
     for compressor in _KNOWN_COMPRESSORS:
         if _cmd_exists(_COMPRESSOR_BINARY[compressor]):
-            print(compressor)
             compressors.append(compressor)
     return compressors
 
